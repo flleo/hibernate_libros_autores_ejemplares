@@ -1,0 +1,15 @@
+-- Autores
+INSERT INTO `autores`(`codAutor`, `nombreAutor`) VALUES ('jrrt','j.r.r.tolkien');
+INSERT INTO `autores`(`codAutor`, `nombreAutor`) VALUES ('daab','dan abnett');
+INSERT INTO `autores`(`codAutor`, `nombreAutor`) VALUES ('phkd','Philip K. Dick');  
+-- Ejemplares
+INSERT INTO `ejemplares` (`importe`, `tipoMoneda`, `codLibro`) VALUES (45.0,'euros',2),(350.99,'jenes',2),
+(35.0,'euros',2),(35.0,'euros',3),(35.0,'euros',4),(45.0,'dolares',4);
+INSERT INTO `ejemplares` (`importe`, `tipoMoneda`, `codLibro`) VALUES (45.0,'euros',5),(350.99,'jenes',5),
+(35.0,'euros',6),(35.0,'euros',7),(35.0,'euros',8),(45.0,'dolares',8);
+
+
+
+
+INSERT INTO `autores`(`codAutor`, `nombreAutor`) VALUES ('phmo','Philip Morrison'); 
+INSERT INTO `ejemplares` (`importe`, `tipoMoneda`, `codLibro`) VALUES (5.0,'euros',3),(3.99,'jenes',4);

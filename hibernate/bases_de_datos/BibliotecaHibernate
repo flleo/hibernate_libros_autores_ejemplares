@@ -1,0 +1,294 @@
+
+CREATE DATABASE BibliotecaHibernate;
+
+USE BibliotecaHibernate;
+
+CREATE TABLE autores
+(
+ codAutor CHAR(4) NOT NULL,
+ nombreAutor VARCHAR(30),
+ CONSTRAINT PK_codAutor PRIMARY KEY (codAutor)
+);
+CREATE TABLE libros
+(
+ codLibro int  NOT NULL,
+ nombreLibro VARCHAR(40),
+ ISBN VARCHAR(20) not null UNIQUE,
+ fechaIntro datetime default CURRENT_TIMESTAMP not 
+
+null,
+ CONSTRAINT PK_codLibro PRIMARY KEY (codLibro)
+)
+;
+CREATE TABLE autoreslibros
+(
+ codAutor CHAR(4) NOT NULL,
+ codLibro INT NOT NULL,
+ CONSTRAINT PK_LibroAutor PRIMARY KEY 
+
+(codAutor,codLibro),
+ CONSTRAINT fk_codAutor FOREIGN KEY (codAutor) 
+
+REFERENCES autores(codAutor)on update cascade on 
+
+delete cascade,
+ CONSTRAINT fk_codLibro FOREIGN KEY (codLibro) 
+
+REFERENCES libros(codLibro)on update cascade on 
+
+delete cascade
+);
+
+CREATE TABLE ejemplares
+(
+ codEjemplar INT  NOT NULL,
+ codLibro INT NOT NULL,
+ importe numeric (5,2)not null default 0,
+ moneda varchar(20) default 'Euro',
+ CONSTRAINT PK_ejemplares PRIMARY KEY (codEjemplar),
+ CONSTRAINT fk_ejem_codlibro FOREIGN KEY (codLibro) 
+
+REFERENCES libros(codLibro) on update cascade on 
+
+delete cascade
+)
+;
+
+--  POR AQUI---------------------------------------------
+create trigger dbo.tr_importe
+on dbo.ejemplares
+for insert 
+as
+
+declare cursor_importe cursor for select distinct 
+
+importe from inserted 
+declare @importe numeric (5,2)
+open cursor_importe 
+
+fetch next from cursor_importe into @importe
+while @@FETCH_STATUS=0
+	begin	
+		if  @importe <1
+			begin
+				raiserror ('el 
+
+importe no puede ser menor que 1',14,1)
+				rollback transaction
+			end
+	fetch next from cursor_importe into @importe
+	end
+close cursor_importe 
+deallocate cursor_importe 
+;
+
+
+create trigger dbo.tr_libro
+on dbo.libros
+for insert 
+as
+
+declare cursor_libro cursor for select distinct 
+
+ISBN,fechaIntro from inserted 
+
+declare @ISBN VARCHAR(20),
+ @fechaIntro datetime,
+ @error int =0
+
+open cursor_libro
+
+fetch next from cursor_libro into @ISBN, @fechaIntro
+while @@FETCH_STATUS=0
+	begin	
+		  IF (@fechaIntro > 
+
+CURRENT_TIMESTAMP) begin
+        raiserror ('error fecha',14,1)
+		set @error=1
+    END 
+
+     IF (@ISBN NOT LIKE '[0-9][0-9]-[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]-[A-Z]')  begin
+      raiserror ('error isbn',14,1)
+			set @error=1
+    END 
+
+	if @error=1
+	rollback transaction
+
+	fetch next from cursor_libro into @ISBN, 
+
+@fechaIntro
+	end
+close cursor_libro
+deallocate cursor_libro
+;
+
+
+CREATE PROCEDURE  pLibrosAutores 
+@TISBN varchar(20),  
+@TcodigoAutoR CHAR(4),
+@res INT output
+AS
+BEGIN
+ 	declare @auxCodLibro int,
+ 	@auxlibro int,
+	@auxAutor int
+
+ 	set @auxCodLibro = (select codLibro  from 
+
+libros where ISBN like @TISBN)
+	set @auxlibro=(select count(*)   from libros 
+
+ where isbn like @TISBN)
+	set @auxAutor =(select count(*)  from 
+
+autores where codAutor like @TcodigoAutoR)
+ 	
+	if (@auxlibro > 0 and @auxAutor > 0) begin
+		insert autoreslibros VALUES
+
+(@TcodigoAutoR,@auxCodLibro)
+		set @res=0
+		end
+		else if (@auxlibro=0 and 
+
+@auxAutor=0) 
+			set @res=3
+			else if (@auxlibro=0 and 
+
+@auxAutor>0) 
+				set @res=1
+				else if (@auxlibro>0 
+
+and @auxAutor=0) 
+					set @res=2
+end
+;
+
+CREATE PROCEDURE dbo.pListaEjemplares
+@TnombreAutor varchar(30)
+AS
+	BEGIN
+		SELECT * FROM LIBROS WHERE CODLIBRO IN (SELECT CODLIBRO FROM AUTORESLIBROS WHERE CODAUTOR LIKE
+	(SELECT CODAUTOR FROM AUTORES WHERE NOMBREAUTOR LIKE @TnombreAutor))
+
+	END
+
+;
+
+CREATE FUNCTION fnumAutorLibro (@TnombreAutor 
+
+varchar(30))
+	RETURNS INT
+	begin
+		return (select count(*)
+		   from autoreslibros
+		   inner join autores on 
+
+autoreslibros.codAutor = autores.codAutor
+		   where autores.nombreAutor like 
+
+@TnombreAutor)
+	end
+
+;
+
+CREATE PROCEDURE pCantidadEjemplares 
+	@Tisbn varchar(20),
+	@cantidadLibros INT output,
+	@fecha datetime output
+	AS
+	begin
+	select @cantidadLibros =count(*)  from 
+
+ejemplares
+				inner join libros on 
+
+libros.codLibro = ejemplares.codLibro
+				where libros.ISBN = 
+
+@Tisbn
+
+	select  @fecha =fechaIntro  from libros 
+
+where ISBN like @Tisbn
+
+	end
+;
+-- INSERCIONES------------------------------------------
+
+		
+-- SET IDENTITY_INSERT LIBROS off  --se respeta el autornumerico
+
+INSERT INTO autores (codAutor, nombreAutor) VALUES
+('CHDI', 'CHARLES DICKENS'),
+('MIEN', 'MICHEL ENDE');
+
+
+INSERT INTO libros (nombreLibro, ISBN, fechaIntro) VALUES
+('JIM BOTON', '12-456-7892-A', CURRENT_TIMESTAMP),
+( 'LA HISTORIA INTERMINABLE', '12-456-7890-B', CURRENT_TIMESTAMP),
+( 'MOMO', '12-456-7891-B', CURRENT_TIMESTAMP),
+( 'DAVID COPERFIELD', '12-456-7891-A', CURRENT_TIMESTAMP),
+( 'EL PONCHE DE LOS DESEOS', '12-456-7893-B', CURRENT_TIMESTAMP);
+
+INSERT INTO ejemplares VALUES
+( 23, 22, 'EUR'),
+( 24, 21, 'EUR'),
+( 23, 23, 'EUR'),
+(25, 20, 'DOLAR'),
+(25, 20, 'EUR');
+
+
+
+
+INSERT INTO autoreslibros (codAutor, codLibro) 
+
+VALUES
+('MIEN', 24),
+('MIEN', 25),
+('MIEN', 23);
+
+
+
+
+-- select dbo.fnumAutorLibro ('paco')
+
+
+-- select * from ejemplares
+-- select * from libros
+-- go
+-- DECLARE @a int
+-- declare  @b datetime
+-- exec dbo.pCantidadEjemplares '11-111-1111-a', @a 
+
+-- output, @b output
+-- print  @a
+-- print @b
+-- go
+
+ INSERT INTO libros (nombreLibro,ISBN,fechaIntro)
+ values  
+('tururu','11-111-1115-','1-1-2017');
+
+-- select * from libros
+
+ INSERT INTO ejemplares (codLibro,importe,moneda)
+ values (1,2,'eusssro'),(1,0,'ffff');
+
+-- select * from ejemplares
+
+insert into autores values ('aaaa','paco');
+
+-- DECLARE @res int
+
+-- EXEC  pLibrosAutores  '11-111-1111-a','aaaa', @res 
+
+-- output
+
+-- PRINT @res
+
+-- select * from librosAutores
+
+-- exec pListaEjemplares 'paco' 
